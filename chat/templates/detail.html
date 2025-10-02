@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% block content %}
+  <!-- section -->
+  <p class="m-3 text-center text-sky-700 text-4xl font-bold">Messages | {{frind.profile.name|title}}</p>
+  <div class="flex flex-col items-center justify-center w-screen min-h-screen bg-gray-100 text-gray-800 p-10">
+
+    <!-- Component Start -->
+    <div class="flex flex-col flex-grow w-full max-w-xl bg-white shadow-xl rounded-lg overflow-hidden">
+      <div id="chat-main" class="flex flex-col flex-grow h-0 p-4 overflow-auto">
+        
+        {% for chat in chats %}
+          {% if chat.sender == user and chat.reciever == profile %}
+            <!-- sender -->
+            <div class="flex w-full mt-2 space-x-3 max-w-xs ml-auto justify-end">
+              <div>
+                <div class="bg-blue-600 text-white p-3 rounded-l-xl rounded-br-xl">
+                  <p class="text-sm font-bold">{{chat.body}}</p>
+                </div>
+                <span class="text-xs text-gray-500 leading-none">{{chat.created_date|timesince}} ago</span>
+              </div>
+              <img src="{{chat.sender.img.url}}" class="flex-shrink-0 h-10 w-10 rounded-full" alt="">
+              <!-- <div class="flex-shrink-0 h-10 w-10 rounded-full bg-gray-300"></div> -->
+            </div>
+          {% elif chat.sender == profile and chat.reciever == user %}
+            <!-- ricever -->
+            <div class="flex w-full mt-2 space-x-3 max-w-xs">
+              <img src="{{chat.sender.img.url}}" class="flex-shrink-0 h-10 w-10 rounded-full" alt="">
+              <div>
+                <div class="bg-gray-300 p-3 rounded-r-xl rounded-bl-xl">
+                  <p class="text-sm font-bold">{{chat.body}}</p>
+                </div>
+                <span class="text-xs text-gray-500 leading-none">{{chat.created_date|timesince}} ago</span>
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+      
+      <form id="myform" method="POST">
+        {% csrf_token %}
+        <div class="flex justify-center items-center space-x-2 p-4">
+          <div class="">
+            <img src="{{request.user.profile.img.url}}" class="flex-shrink-0 h-10 w-10 rounded-full">
+          </div>
+          {{form.body}}
+          <!-- <input class="flex items-center h-10 w-full rounded px-3 text-sm rounded-2xl" type="text" placeholder="Type your message…"> -->
+          <button type="submit" id="submit" class="m-2 p-2 bg-sky-300 rounded-full"><i class="fa-solid fa-paper-plane fa-lg"></i></button>
+        </div>
+      </form>
+    </div>
+    <!-- Component End  -->
+  
+  </div>
+  <script>
+    // using jQuery
+    function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = jQuery.trim(cookies[i]);
+                // Does this cookie string begin with the name we want?
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    var csrftoken = getCookie('csrftoken');
+
+
+    let form = document.getElementById('myform')
+    form.addEventListener("submit",sendChat);
+    function sendChat(e){
+      e.preventDefault()
+      let body = document.getElementById("id_body").value;
+      let url = "{% url 'sendMessage' frind.profile.id %}"
+      let user = "{{request.user.profile.img.url}}"
+      const data = { msg: body };
+
+      fetch(url, {
+        method: "POST", // or 'PUT'
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrftoken
+        },
+        body: JSON.stringify(data),
+        })
+        .then(response => response.json())
+        .then(data => {
+          // تحضير الرسالة التي ستُرسل
+          let chatHtml = 
+            '<div class="flex w-full mt-2 space-x-3 max-w-xs ml-auto justify-end">' +
+              '<div>' +
+                '<div class="bg-blue-600 text-white p-3 rounded-l-xl rounded-br-xl">' +
+                  '<p class="text-sm font-bold">' + data + '</p>' +
+                '</div>' +
+                '<span class="text-xs text-gray-500 leading-none">0 minute ago</span>' +
+              '</div>' +
+              '<img src="' + user + '" class="flex-shrink-0 h-10 w-10 rounded-full" alt="">' +
+            '</div>';
+
+          // إضافة الرسالة إلى عنصر الشات
+          let chatContainer = document.getElementById('chat-main');
+          chatContainer.innerHTML += chatHtml;
+          // انزل تحت خالص بعد إضافة الرسالة
+          chatContainer.scrollTop = chatContainer.scrollHeight;
+          document.getElementById('id_body').value='';
+
+        })
+        .catch(error => console.error('Error:', error));
+        
+    }
+
+
+    setInterval(recieveMessage,2000)
+
+    let counter = "{{num}}"
+    function recieveMessage(){
+      // const data = {num : counter}
+      let url = "{% url 'receiveMessage' frind.profile.id %}"
+      let body = document.getElementById("id_body").value;
+      let user = "{{frind.profile.img.url}}"
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          if (data.length == 0){}
+          else{
+            let lastMsg = data[data.length-1]
+
+            if (counter == data.length){console.log('no new message')}
+            else{
+              // تحضير الرسالة التي ستُرسل
+              let chatHtml = 
+                '<div class="flex w-full mt-2 space-x-3 max-w-xs">' +
+                  '<img src="' + user + '" class="flex-shrink-0 h-10 w-10 rounded-full" alt="">' +
+                  '<div>' +
+                    '<div class="bg-gray-300 p-3 rounded-r-xl rounded-bl-xl">' +
+                      '<p class="text-sm font-bold">' + lastMsg + '</p>' +
+                    '</div>' +
+                    '<span class="text-xs text-gray-500 leading-none">0 minute ago</span>' +
+                  '</div>' +
+                '</div>';
+
+              // إضافة الرسالة إلى عنصر الشات
+              let chatContainer = document.getElementById('chat-main');
+              chatContainer.innerHTML += chatHtml;
+              // انزل تحت خالص بعد إضافة الرسالة
+              chatContainer.scrollTop = chatContainer.scrollHeight;
+              document.getElementById('id_body').value='';
+            }
+          }
+          counter = data.length
+        })
+        .catch(error => console.error('Error:', error));
+    }
+  </script>
+  <script>
+  document.addEventListener("DOMContentLoaded", function() {
+    let chatContainer = document.getElementById('chat-main');
+    window.scrollTo(0, document.body.scrollHeight);
+    if (chatContainer) {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+  });
+</script>
+{% endblock content %}
